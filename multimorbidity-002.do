@@ -581,25 +581,36 @@ restore
 
 ** HEATPLOT 2
 ** Odds Ratio percentage change 
-** Showing Directional change
-preserve
+** Showing Directional change (Stronger effect versus Weaker effect)
+*preserve
     gen pred = _n 
     labmask pred , values(_varname)
-    * drop p-values 
+    ** drop p-values 
     drop if pred==2|pred==4|pred==6|pred==8|pred==10|pred==12|pred==14|pred==16|pred==18|pred==20|pred==22|pred==24|pred==26|pred==28|pred==30|pred==32|pred==34
     local removed = "hypertension lipids diabetes obesity heart chf stroke ckd asthma copd arthritis cancer liver"
     local removed = "v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14"
+
+    ** Generate ln() of odds ratio for linear scale. 0 = no effect 
+    ** gen lv1 = ln(v1) 
+    ** foreach var of local removed {
+    **     gen l`var' = ln(`var')
+    ** }
+    ** Compare each value against the full multimorbidity model (v1)
+    ** Convert to ORs > 1 in all cases 
+    ** Any negative change is a weaker effect
+    ** Any positive change is a stronger effect
+    gen rv1 = (1/v1) if v1 < 1
     foreach var of local removed {
-            gen r`var' = ( (`var' - v1)/v1 ) * 100
-            /// gen `var'_a = (v1 - `var')
+        gen r`var' = (1/`var') if `var' < 1
+        gen c`var' = ( (r`var' - rv1)/rv1 ) * 100
     }
-    keep v* rv* pred 
-    reshape long v rv, i(pred) j(removed)
+    
+    reshape long v rv cv, i(pred) j(removed)
     label values removed removed_
 
 
     #delimit ;
-        heatplot rv i.pred i.removed if rv!=.
+        heatplot cv i.pred i.removed if cv!=.
         ,
 
         color(RdYlBu , reverse intensify(0.45 ))
